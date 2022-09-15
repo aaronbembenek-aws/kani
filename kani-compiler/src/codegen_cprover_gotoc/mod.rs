@@ -4,6 +4,7 @@ mod archive;
 mod codegen;
 mod compiler_interface;
 mod context;
+mod mir_transform;
 mod overrides;
 mod reachability;
 mod utils;

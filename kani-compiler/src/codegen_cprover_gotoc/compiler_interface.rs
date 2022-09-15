@@ -3,6 +3,7 @@
 
 //! This file contains the code necessary to interface with the compiler backend
 
+use crate::codegen_cprover_gotoc::mir_transform;
 use crate::codegen_cprover_gotoc::reachability::{collect_reachable_items, filter_crate_items};
 use crate::codegen_cprover_gotoc::GotocCtx;
 use bitflags::_core::any::Any;
@@ -49,7 +50,9 @@ impl CodegenBackend for GotocCodegenBackend {
         Box::new(rustc_codegen_ssa::back::metadata::DefaultMetadataLoader)
     }
 
-    fn provide(&self, _providers: &mut Providers) {}
+    fn provide(&self, providers: &mut Providers) {
+        mir_transform::provide(providers);
+    }
 
     fn provide_extern(&self, _providers: &mut ty::query::ExternProviders) {}
 
