@@ -54,7 +54,9 @@ impl CodegenBackend for GotocCodegenBackend {
         mir_transform::provide(providers);
     }
 
-    fn provide_extern(&self, _providers: &mut ty::query::ExternProviders) {}
+    fn provide_extern(&self, providers: &mut ty::query::ExternProviders) {
+        mir_transform::provide_extern(providers);
+    }
 
     fn codegen_crate(
         &self,
