@@ -4,7 +4,6 @@
 use rustc_hir::def_id::{DefId, LocalDefId};
 use std::collections::HashMap;
 use std::sync::RwLock;
-use std::{fs::File, io, io::BufRead};
 
 static STUB_MAPPING: RwLock<Option<HashMap<String, String>>> = RwLock::new(None);
 
@@ -38,21 +37,7 @@ impl StubbingPass {
         tcx.iter_local_def_id().map(LocalDefId::to_def_id).find(|&id| tcx.def_path_str(id) == path)
     }
 
-    pub fn initialize(stubs_file: &str) {
-        let mut guard = STUB_MAPPING.write().unwrap();
-        let mapping = guard.insert(HashMap::new());
-
-        let file = File::open(stubs_file)
-            .expect(format!("Cannot find stubs file {}", stubs_file).as_str());
-        let buf = io::BufReader::new(file);
-        for line in buf.lines() {
-            if let Ok(line) = line {
-                let pair: Vec<&str> = line.split(" ").collect();
-                assert_eq!(pair.len(), 2);
-                let original = pair[0];
-                let replacement = pair[1];
-                mapping.insert(String::from(original), String::from(replacement));
-            }
-        }
+    pub fn set_stub_mapping(mapping: HashMap<String, String>) {
+        *STUB_MAPPING.write().unwrap() = Some(mapping);
     }
 }

@@ -198,6 +198,10 @@ pub struct KaniArgs {
     /// See the `-Z randomize-layout` and `-Z layout-seed` arguments of the rust compiler.
     #[structopt(long)]
     pub randomize_layout: Option<Option<u64>>,
+
+    /// Pass in a file of stub mappings, one mapping per line in the form `<original> <replacement>`.
+    #[structopt(long, hidden_short_help(true), requires("enable-unstable"))]
+    pub stub_file: Option<String>,
     /*
     The below is a "TODO list" of things not yet implemented from the kani_flags.py script.
 

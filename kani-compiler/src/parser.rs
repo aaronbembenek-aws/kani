@@ -43,6 +43,9 @@ pub const IGNORE_GLOBAL_ASM: &str = "ignore-global-asm";
 /// Option name used to override the sysroot.
 pub const SYSROOT: &str = "sysroot";
 
+/// Option name for passing in stub pairs.
+pub const STUBS: &str = "stubs";
+
 /// Option name used to select which reachability analysis to perform.
 pub const REACHABILITY: &str = "reachability";
 pub const REACHABILITY_FLAG: &str = "--reachability";
@@ -157,6 +160,15 @@ pub fn parser<'a, 'b>() -> App<'a, 'b> {
             Arg::with_name(IGNORE_GLOBAL_ASM)
                 .long("--ignore-global-asm")
                 .help("Suppress error due to the existence of global_asm in a crate"),
+        )
+        .arg(
+            Arg::with_name(STUBS)
+                .long("--stub")
+                .takes_value(true)
+                .value_name("STUB_PAIR")
+                .multiple(true)
+                .number_of_values(1)
+                .help("Specify stub pair in the form `<original>.<replacement>`"),
         );
     #[cfg(feature = "unsound_experiments")]
     let app = crate::unsound_experiments::arg_parser::add_unsound_experiments_to_parser(app);

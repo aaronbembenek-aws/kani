@@ -3,6 +3,8 @@
 
 use anyhow::{Context, Result};
 use std::ffi::OsString;
+use std::fs::File;
+use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -124,10 +126,39 @@ impl KaniSession {
             flags.push("--ignore-global-asm".into());
         }
 
+        if let Some(stub_file) = &self.args.stub_file {
+            for (original, replacement) in KaniSession::parse_stub_file(stub_file) {
+                flags.push("--stub".into());
+                flags.push(format!("{}.{}", original, replacement).into());
+            }
+        }
+
         #[cfg(feature = "unsound_experiments")]
         flags.extend(self.args.unsound_experiments.process_args());
 
         flags
+    }
+
+    fn parse_stub_file(stub_file: &str) -> Vec<(String, String)> {
+        let file =
+            File::open(stub_file).expect(format!("Cannot find stub file: {}", stub_file).as_str());
+        let buf = io::BufReader::new(file);
+        let mut v = vec![];
+        for line in buf.lines() {
+            if let Ok(line) = line {
+                let pair: Vec<&str> = line.split(" ").collect();
+                if pair.len() != 2 {
+                    panic!(
+                        "Error parsing stub file {}: expected a line in the form `<original> <replacement>`, but got `{}`",
+                        stub_file, line
+                    );
+                }
+                let original = pair[0];
+                let replacement = pair[1];
+                v.push((String::from(original), String::from(replacement)));
+            }
+        }
+        return v;
     }
 
     /// These arguments are arguments passed to kani-compiler that are `rustc` specific.

@@ -3,6 +3,7 @@
 
 use crate::codegen_cprover_gotoc::mir_transform::identity::IdentityPass;
 use crate::codegen_cprover_gotoc::mir_transform::stubbing::StubbingPass;
+use kani_queries::UserInput;
 use rustc_hir::def_id::DefId;
 use rustc_interface;
 use rustc_middle::{
@@ -33,12 +34,12 @@ fn run_kani_passes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, body: &Body<'tcx>) ->
     return tcx.arena.alloc(new_body);
 }
 
-pub fn provide(providers: &mut Providers) {
-    StubbingPass::initialize("/Users/aaronbem/stubs.txt");
+pub fn provide(providers: &mut Providers, queries: &kani_queries::QueryDb) {
+    StubbingPass::set_stub_mapping(queries.get_stub_mapping());
     providers.optimized_mir = run_transformation_passes;
 }
 
-pub fn provide_extern(providers: &mut ExternProviders) {
-    StubbingPass::initialize("/Users/aaronbem/stubs.txt");
+pub fn provide_extern(providers: &mut ExternProviders, queries: &kani_queries::QueryDb) {
+    StubbingPass::set_stub_mapping(queries.get_stub_mapping());
     providers.optimized_mir = run_transformation_passes_extern;
 }

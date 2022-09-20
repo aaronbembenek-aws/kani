@@ -1,9 +1,12 @@
 // Copyright Kani Contributors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(not(feature = "unsound_experiments"))]
 use std::sync::Mutex;
+use std::{
+    collections::HashMap,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[cfg(feature = "unsound_experiments")]
@@ -53,6 +56,9 @@ pub trait UserInput {
     fn set_reachability_analysis(&mut self, reachability: ReachabilityType);
     fn get_reachability_analysis(&self) -> ReachabilityType;
 
+    fn set_stub_mapping(&mut self, mapping: HashMap<String, String>);
+    fn get_stub_mapping(&self) -> HashMap<String, String>;
+
     #[cfg(feature = "unsound_experiments")]
     fn get_unsound_experiments(&self) -> Arc<Mutex<UnsoundExperiments>>;
 }
@@ -65,6 +71,7 @@ pub struct QueryDb {
     json_pretty_print: AtomicBool,
     ignore_global_asm: AtomicBool,
     reachability_analysis: Mutex<ReachabilityType>,
+    stub_mapping: HashMap<String, String>,
     #[cfg(feature = "unsound_experiments")]
     unsound_experiments: Arc<Mutex<UnsoundExperiments>>,
 }
@@ -118,8 +125,35 @@ impl UserInput for QueryDb {
         *self.reachability_analysis.lock().unwrap()
     }
 
+    fn set_stub_mapping(&mut self, mapping: HashMap<String, String>) {
+        self.stub_mapping = mapping;
+    }
+
+    fn get_stub_mapping(&self) -> HashMap<String, String> {
+        self.stub_mapping.clone()
+    }
+
     #[cfg(feature = "unsound_experiments")]
     fn get_unsound_experiments(&self) -> Arc<Mutex<UnsoundExperiments>> {
         self.unsound_experiments.clone()
     }
+}
+
+pub fn stub_mapping_from_strings(ss: &Vec<&str>) -> HashMap<String, String> {
+    let mut m = HashMap::new();
+    for s in ss {
+        let parts: Vec<&str> = s.split('.').collect();
+        if parts.len() != 2 {
+            panic!("Invalid stub pair (should be in the form <original>.<replacement>): {}", s);
+        }
+        let original = parts[0];
+        let replacement = parts[1];
+        if let Some(other) = m.insert(String::from(original), String::from(replacement)) {
+            panic!(
+                "Invalid stub mapping: {} mapped to both {} and {}",
+                original, other, replacement
+            );
+        }
+    }
+    return m;
 }

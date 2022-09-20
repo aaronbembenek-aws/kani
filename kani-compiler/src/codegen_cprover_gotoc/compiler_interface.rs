@@ -51,11 +51,11 @@ impl CodegenBackend for GotocCodegenBackend {
     }
 
     fn provide(&self, providers: &mut Providers) {
-        mir_transform::provide(providers);
+        mir_transform::provide(providers, &self.queries);
     }
 
     fn provide_extern(&self, providers: &mut ty::query::ExternProviders) {
-        mir_transform::provide_extern(providers);
+        mir_transform::provide_extern(providers, &self.queries);
     }
 
     fn codegen_crate(

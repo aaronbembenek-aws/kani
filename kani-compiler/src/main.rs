@@ -96,6 +96,9 @@ fn main() -> Result<(), &'static str> {
     queries.set_output_pretty_json(matches.is_present(parser::PRETTY_OUTPUT_FILES));
     queries.set_ignore_global_asm(matches.is_present(parser::IGNORE_GLOBAL_ASM));
     queries.set_reachability_analysis(matches.reachability_type());
+    queries.set_stub_mapping(kani_queries::stub_mapping_from_strings(
+        &matches.values_of(parser::STUBS).map_or(Vec::new(), |vs| vs.collect()),
+    ));
     #[cfg(feature = "unsound_experiments")]
     crate::unsound_experiments::arg_parser::add_unsound_experiment_args_to_queries(
         &mut queries,
