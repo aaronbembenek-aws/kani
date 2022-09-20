@@ -146,10 +146,10 @@ impl KaniSession {
         let mut v = vec![];
         for line in buf.lines() {
             if let Ok(line) = line {
-                let pair: Vec<&str> = line.split(" ").collect();
+                let pair: Vec<&str> = line.split(".").collect();
                 if pair.len() != 2 {
                     panic!(
-                        "Error parsing stub file {}: expected a line in the form `<original> <replacement>`, but got `{}`",
+                        "Error parsing stub file {}: expected a line in the form `<original>.<replacement>`, but got `{}`",
                         stub_file, line
                     );
                 }
