@@ -5,6 +5,7 @@
 
 use crate::codegen_cprover_gotoc::reachability::{collect_reachable_items, filter_crate_items};
 use crate::codegen_cprover_gotoc::GotocCtx;
+use crate::mir_transform;
 use bitflags::_core::any::Any;
 use cbmc::goto_program::{symtab_transformer, Location};
 use cbmc::{InternedString, MachineModel};
@@ -54,9 +55,13 @@ impl CodegenBackend for GotocCodegenBackend {
         Box::new(rustc_codegen_ssa::back::metadata::DefaultMetadataLoader)
     }
 
-    fn provide(&self, _providers: &mut Providers) {}
+    fn provide(&self, providers: &mut Providers) {
+        mir_transform::provide(providers, &self.queries);
+    }
 
-    fn provide_extern(&self, _providers: &mut ty::query::ExternProviders) {}
+    fn provide_extern(&self, providers: &mut ty::query::ExternProviders) {
+        mir_transform::provide_extern(providers, &self.queries);
+    }
 
     fn codegen_crate(
         &self,

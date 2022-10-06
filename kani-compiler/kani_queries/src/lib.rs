@@ -1,6 +1,10 @@
 // Copyright Kani Contributors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+#![feature(rustc_private)]
+extern crate rustc_data_structures;
+
+use rustc_data_structures::fx::FxHashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(not(feature = "unsound_experiments"))]
 use std::sync::Mutex;
@@ -53,6 +57,9 @@ pub trait UserInput {
     fn set_reachability_analysis(&mut self, reachability: ReachabilityType);
     fn get_reachability_analysis(&self) -> ReachabilityType;
 
+    fn set_stub_mapping(&mut self, mapping: FxHashMap<String, String>);
+    fn get_stub_mapping(&self) -> FxHashMap<String, String>;
+
     #[cfg(feature = "unsound_experiments")]
     fn get_unsound_experiments(&self) -> Arc<Mutex<UnsoundExperiments>>;
 }
@@ -65,6 +72,7 @@ pub struct QueryDb {
     json_pretty_print: AtomicBool,
     ignore_global_asm: AtomicBool,
     reachability_analysis: Mutex<ReachabilityType>,
+    stub_mapping: FxHashMap<String, String>,
     #[cfg(feature = "unsound_experiments")]
     unsound_experiments: Arc<Mutex<UnsoundExperiments>>,
 }
@@ -116,6 +124,14 @@ impl UserInput for QueryDb {
 
     fn get_reachability_analysis(&self) -> ReachabilityType {
         *self.reachability_analysis.lock().unwrap()
+    }
+
+    fn set_stub_mapping(&mut self, mapping: FxHashMap<String, String>) {
+        self.stub_mapping = mapping;
+    }
+
+    fn get_stub_mapping(&self) -> FxHashMap<String, String> {
+        self.stub_mapping.clone()
     }
 
     #[cfg(feature = "unsound_experiments")]

@@ -30,6 +30,7 @@ extern crate rustc_target;
 mod attributes;
 #[cfg(feature = "cprover")]
 mod codegen_cprover_gotoc;
+mod mir_transform;
 mod parser;
 mod session;
 mod stubbing;
@@ -39,6 +40,7 @@ use crate::parser::KaniCompilerParser;
 use crate::session::init_session;
 use clap::ArgMatches;
 use kani_queries::{QueryDb, ReachabilityType, UserInput};
+use rustc_data_structures::fx::FxHashMap;
 use rustc_driver::{Callbacks, RunCompiler};
 use std::ffi::OsStr;
 use std::path::PathBuf;
@@ -109,10 +111,24 @@ fn main() -> Result<(), &'static str> {
     // Generate rustc args.
     let rustc_args = generate_rustc_args(&matches);
 
-    if queries.get_reachability_analysis() == ReachabilityType::Harnesses {
+    let harness = std::env::var("KANI_STUBBING_HARNESS").ok();
+    let stub_mapping = if harness.is_some()
+        && queries.get_reachability_analysis() == ReachabilityType::Harnesses
+    {
+        let harness = harness.unwrap();
         let annotation_collector = AnnotationCollector::new(&rustc_args);
-        let _stub_mapping = annotation_collector.run().or(Err("Failed to compile crate"))?;
-    }
+        let mut all_stub_mappings =
+            annotation_collector.run().or(Err("Failed to compile crate"))?;
+        if !all_stub_mappings.contains_key(&harness) {
+            for (k, _) in &all_stub_mappings {
+                println!("OPTION: {}", k);
+            }
+        }
+        all_stub_mappings.remove(&harness).ok_or("Could not find specified stubbing harness")?
+    } else {
+        FxHashMap::default()
+    };
+    queries.set_stub_mapping(stub_mapping);
 
     // Configure and run compiler.
     let mut callbacks = KaniCallbacks {};
