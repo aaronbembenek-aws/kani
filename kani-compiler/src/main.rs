@@ -20,16 +20,19 @@ extern crate rustc_driver;
 extern crate rustc_errors;
 extern crate rustc_hir;
 extern crate rustc_index;
+extern crate rustc_interface;
 extern crate rustc_metadata;
 extern crate rustc_middle;
 extern crate rustc_session;
 extern crate rustc_span;
 extern crate rustc_target;
 
+mod attributes;
 #[cfg(feature = "cprover")]
 mod codegen_cprover_gotoc;
 mod parser;
 mod session;
+mod stubbing;
 mod unsound_experiments;
 
 use crate::parser::KaniCompilerParser;
@@ -41,6 +44,7 @@ use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::{env, fs};
+use stubbing::annotations::AnnotationCollector;
 
 /// This function generates all rustc configurations required by our goto-c codegen.
 fn rustc_gotoc_flags(lib_path: &str) -> Vec<String> {
@@ -104,6 +108,11 @@ fn main() -> Result<(), &'static str> {
 
     // Generate rustc args.
     let rustc_args = generate_rustc_args(&matches);
+
+    if queries.get_reachability_analysis() == ReachabilityType::Harnesses {
+        let annotation_collector = AnnotationCollector::new(&rustc_args);
+        let _stub_mapping = annotation_collector.run().or(Err("Failed to compile crate"))?;
+    }
 
     // Configure and run compiler.
     let mut callbacks = KaniCallbacks {};
