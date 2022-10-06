@@ -62,7 +62,6 @@ pub fn extract_path_arguments(attr: &Attribute) -> Option<Vec<String>> {
     let mut paths = Vec::new();
     for arg in attr_args {
         let meta_item = arg.meta_item()?;
-        println!("ARG {:#?}", meta_item);
         if meta_item.is_word() {
             let path = meta_item
                 .path
@@ -71,7 +70,6 @@ pub fn extract_path_arguments(attr: &Attribute) -> Option<Vec<String>> {
                 .map(|seg| seg.ident.as_str())
                 .collect::<Vec<&str>>()
                 .join("::");
-            println!("PATH {}", path);
             paths.push(path);
         } else {
             return None;
