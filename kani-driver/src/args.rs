@@ -217,6 +217,10 @@ pub struct KaniArgs {
     /// See the `-Z randomize-layout` and `-Z layout-seed` arguments of the rust compiler.
     #[structopt(long)]
     pub randomize_layout: Option<Option<u64>>,
+
+    /// Enable the stubbing of functions and methods.
+    #[structopt(long, hidden_short_help(true), requires("enable-unstable"), requires("harness"))]
+    pub enable_stubbing: bool,
     /*
     The below is a "TODO list" of things not yet implemented from the kani_flags.py script.
 

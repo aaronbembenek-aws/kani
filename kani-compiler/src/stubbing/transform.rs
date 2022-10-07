@@ -6,6 +6,7 @@ use rustc_hir::def_id::{DefId, LocalDefId};
 use std::sync::RwLock;
 
 static STUB_MAPPING: RwLock<Option<FxHashMap<String, String>>> = RwLock::new(None);
+
 pub struct StubbingPass {}
 
 impl StubbingPass {

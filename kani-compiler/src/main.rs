@@ -111,20 +111,16 @@ fn main() -> Result<(), &'static str> {
     // Generate rustc args.
     let rustc_args = generate_rustc_args(&matches);
 
-    let harness = std::env::var("KANI_STUBBING_HARNESS").ok();
+    let harness = matches.value_of(parser::HARNESS);
     let stub_mapping = if harness.is_some()
+        && matches.is_present(parser::ENABLE_STUBBING)
         && queries.get_reachability_analysis() == ReachabilityType::Harnesses
     {
         let harness = harness.unwrap();
         let annotation_collector = AnnotationCollector::new(&rustc_args);
         let mut all_stub_mappings =
             annotation_collector.run().or(Err("Failed to compile crate"))?;
-        if !all_stub_mappings.contains_key(&harness) {
-            for (k, _) in &all_stub_mappings {
-                println!("OPTION: {}", k);
-            }
-        }
-        all_stub_mappings.remove(&harness).ok_or("Could not find specified stubbing harness")?
+        all_stub_mappings.remove(harness).ok_or("Could not find specified stubbing harness")?
     } else {
         FxHashMap::default()
     };
