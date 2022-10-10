@@ -1,3 +1,6 @@
+// Copyright Kani Contributors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use rustc_data_structures::fx::FxHashMap;
 use rustc_driver::RunCompiler;
 use rustc_driver::{Callbacks, Compilation};
