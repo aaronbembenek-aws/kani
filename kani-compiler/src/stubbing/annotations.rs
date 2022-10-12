@@ -59,7 +59,7 @@ impl AnnotationCollectorCallbacks {
         name: &str,
         current_module: LocalDefId,
     ) -> Option<String> {
-        let path: Vec<&str> = name.split("::").collect();
+        let path: Vec<String> = name.split("::").map(|s| s.to_string()).collect();
         if AnnotationCollectorCallbacks::is_relative_path(&path) {
             let maybe_resolution =
                 AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, current_module, &path);
@@ -74,7 +74,7 @@ impl AnnotationCollectorCallbacks {
     fn try_resolve_relative_path(
         tcx: TyCtxt,
         current_module: LocalDefId,
-        path: &Vec<&str>,
+        path: &Vec<String>,
     ) -> Option<String> {
         let name = path.join("::");
         let module_name = tcx.def_path_str(current_module.to_def_id());
@@ -93,23 +93,48 @@ impl AnnotationCollectorCallbacks {
                         return Some(fn_name);
                     }
                 }
-                ItemKind::Use(use_path, _) => {
+                ItemKind::Use(use_path, kind) => {
                     let maybe_resolved =
                         AnnotationCollectorCallbacks::try_resolve_use(tcx, &name, item, use_path);
                     match maybe_resolved {
                         TryResolveUseResult::Fn(func) => return Some(func),
-                        TryResolveUseResult::Mod(mod_id) => used_mods.push(mod_id),
+                        TryResolveUseResult::Mod(mod_id) => match kind {
+                            rustc_hir::UseKind::Single => {
+                                println!("IDENT: {}", item.ident);
+                                println!("ID: {}", tcx.def_path_str(mod_id));
+                                let mod_path = tcx
+                                    .def_path_str(mod_id)
+                                    .split("::")
+                                    .map(|s| s.to_string())
+                                    .collect::<Vec<String>>();
+                                let mod_last = mod_path.last().unwrap();
+                                // Handle use foo as bar
+                                if mod_last != item.ident.as_str() {
+                                    if item.ident.as_str() == path[0] {
+                                        let mut new_path = path.clone();
+                                        new_path.remove(0);
+                                        used_mods.push((mod_id, Some(new_path)));
+                                    }
+                                } else {
+                                    used_mods.push((mod_id, None));
+                                }
+                            }
+                            rustc_hir::UseKind::Glob => used_mods.push((mod_id, None)),
+                            rustc_hir::UseKind::ListStem => (),
+                        },
                         _ => (),
                     }
                 }
                 _ => (),
             }
-            for mod_id in used_mods {
+            for (mod_id, maybe_path) in used_mods {
                 println!("USED MOD: {}", tcx.def_path_str(mod_id));
                 match mod_id.as_local() {
                     Some(mod_id) => {
                         let maybe_res = AnnotationCollectorCallbacks::try_resolve_relative_path(
-                            tcx, mod_id, path,
+                            tcx,
+                            mod_id,
+                            maybe_path.as_ref().unwrap_or(path),
                         );
                         if maybe_res.is_some() {
                             return maybe_res;
@@ -132,7 +157,7 @@ impl AnnotationCollectorCallbacks {
             match def_kind {
                 DefKind::Fn => {
                     let ident = item.ident.to_string();
-                    println!("IDENT {}", ident);
+                    //println!("IDENT {}", ident);
                     if ident == name {
                         let res_name = tcx.def_path_str(def_id);
                         println!("RESOLVED: {} --> {}", &name, res_name);
@@ -146,7 +171,7 @@ impl AnnotationCollectorCallbacks {
         TryResolveUseResult::NotResolved
     }
 
-    fn is_relative_path(_path: &Vec<&str>) -> bool {
+    fn is_relative_path(_path: &Vec<String>) -> bool {
         return true;
     }
 
