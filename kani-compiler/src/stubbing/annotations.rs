@@ -7,7 +7,7 @@ use rustc_driver::RunCompiler;
 use rustc_driver::{Callbacks, Compilation};
 use rustc_errors::ErrorGuaranteed;
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::def_id::LocalDefId;
+use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_hir::{Item, ItemKind, Path};
 use rustc_interface::interface::Compiler;
 use rustc_interface::Queries;
@@ -39,7 +39,7 @@ struct AnnotationCollectorCallbacks {
 enum TryResolveUseResult {
     NotResolved,
     Fn(String),
-    //Mod(LocalDefId),
+    Mod(DefId),
 }
 
 impl AnnotationCollectorCallbacks {
@@ -84,6 +84,7 @@ impl AnnotationCollectorCallbacks {
         for item_id in tcx.hir().module_items(current_module) {
             let item = tcx.hir().item(item_id);
             println!("TRYING TO RESOLVE: {} aka {}", name, qualified_name);
+            let mut used_mods = Vec::new();
             match item.kind {
                 ItemKind::Fn(..) => {
                     let fn_name = tcx.def_path_str(item.def_id.to_def_id());
@@ -97,13 +98,26 @@ impl AnnotationCollectorCallbacks {
                         AnnotationCollectorCallbacks::try_resolve_use(tcx, &name, item, use_path);
                     match maybe_resolved {
                         TryResolveUseResult::Fn(func) => return Some(func),
+                        TryResolveUseResult::Mod(mod_id) => used_mods.push(mod_id),
                         _ => (),
                     }
                 }
                 _ => (),
             }
-            println!("ITEM {}", tcx.def_path_str(item.def_id.to_def_id()));
-            println!("{:#?}", item);
+            for mod_id in used_mods {
+                println!("USED MOD: {}", tcx.def_path_str(mod_id));
+                match mod_id.as_local() {
+                    Some(mod_id) => {
+                        let maybe_res = AnnotationCollectorCallbacks::try_resolve_relative_path(
+                            tcx, mod_id, path,
+                        );
+                        if maybe_res.is_some() {
+                            return maybe_res;
+                        }
+                    }
+                    None => unimplemented!("Cannot handle foreign modules"),
+                }
+            }
         }
         None
     }
@@ -125,6 +139,7 @@ impl AnnotationCollectorCallbacks {
                         return TryResolveUseResult::Fn(res_name);
                     }
                 }
+                DefKind::Mod => return TryResolveUseResult::Mod(def_id),
                 _ => {}
             }
         }
