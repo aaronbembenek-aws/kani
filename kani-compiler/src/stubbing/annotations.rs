@@ -7,6 +7,7 @@ use rustc_driver::RunCompiler;
 use rustc_driver::{Callbacks, Compilation};
 use rustc_errors::ErrorGuaranteed;
 use rustc_hir::def::{DefKind, Res};
+use rustc_hir::def_id::CRATE_DEF_INDEX;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_hir::{Item, ItemKind, Path};
 use rustc_interface::interface::Compiler;
@@ -61,7 +62,7 @@ impl AnnotationCollectorCallbacks {
     ) -> Option<String> {
         let path: Vec<String> = name.split("::").map(|s| s.to_string()).collect();
         let maybe_resolution = if AnnotationCollectorCallbacks::is_absolute_path(&path) {
-            None
+            AnnotationCollectorCallbacks::try_resolve_absolute_path(tcx, current_module, &path)
         } else {
             AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, current_module, &path)
         };
@@ -71,6 +72,88 @@ impl AnnotationCollectorCallbacks {
         }
         tcx.sess.span_err(span, format!("kani::stub_by: unable to resolve {}", name));
         None
+    }
+
+    fn try_resolve_absolute_path(
+        tcx: TyCtxt,
+        current_module: LocalDefId,
+        path: &Vec<String>,
+    ) -> Option<String> {
+        // FIXME(aaronbem): validate path
+        AnnotationCollectorCallbacks::try_resolve_absolute_path_rec(tcx, current_module, path)
+    }
+
+    fn try_resolve_absolute_path_rec(
+        tcx: TyCtxt,
+        current_module: LocalDefId,
+        path: &Vec<String>,
+    ) -> Option<String> {
+        match path[0].as_str() {
+            "self" => {
+                if path.len() > 1 {
+                    let mut path = path.clone();
+                    path.remove(0);
+                    AnnotationCollectorCallbacks::try_resolve_absolute_path_rec(
+                        tcx,
+                        current_module,
+                        &path,
+                    )
+                } else {
+                    None
+                }
+            }
+            "crate" => {
+                let mut cur = current_module;
+                // Could use hir().parent_iter() last() instead
+                loop {
+                    if tcx.def_path_str(cur.to_def_id()) == "" {
+                        break;
+                    }
+                    cur = tcx.parent_module_from_def_id(cur);
+                }
+                if path.len() > 1 {
+                    let mut path = path.clone();
+                    path.remove(0);
+                    AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, cur, &path)
+                } else {
+                    None
+                }
+            }
+            "super" => {
+                if tcx.def_path_str(current_module.to_def_id()) == "" || path.len() < 2 {
+                    None
+                } else {
+                    let parent = tcx.parent_module_from_def_id(current_module);
+                    let mut path = path.clone();
+                    path.remove(0);
+                    AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, parent, &path)
+                }
+            }
+            "{{root}}" => {
+                if path.len() < 3 {
+                    None
+                } else {
+                    let mut path = path.clone();
+                    path.remove(0);
+                    let first = path.remove(0);
+                    for crate_num in tcx.crates(()) {
+                        println!("INSPECTING A CRATE");
+                        let crate_name = tcx.crate_name(*crate_num);
+                        if crate_name.as_str() == first {
+                            let crate_def_id = DefId { index: CRATE_DEF_INDEX, krate: *crate_num };
+                            println!("FOUND {}", tcx.def_path_str(crate_def_id));
+                            return AnnotationCollectorCallbacks::try_resolve_foreign_module(
+                                tcx,
+                                crate_def_id,
+                                &path,
+                            );
+                        }
+                    }
+                    None
+                }
+            }
+            _ => AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, current_module, path),
+        }
     }
 
     fn try_resolve_relative_path(
@@ -103,21 +186,10 @@ impl AnnotationCollectorCallbacks {
                             rustc_hir::UseKind::Single => {
                                 println!("IDENT: {}", item.ident);
                                 println!("ID: {}", tcx.def_path_str(mod_id));
-                                let mod_path = tcx
-                                    .def_path_str(mod_id)
-                                    .split("::")
-                                    .map(|s| s.to_string())
-                                    .collect::<Vec<String>>();
-                                let mod_last = mod_path.last().unwrap();
-                                // Handle use foo as bar
-                                if mod_last != item.ident.as_str() {
-                                    if item.ident.as_str() == path[0] {
-                                        let mut new_path = path.clone();
-                                        new_path.remove(0);
-                                        used_mods.push((mod_id, Some(new_path)));
-                                    }
-                                } else {
-                                    used_mods.push((mod_id, None));
+                                if item.ident.as_str() == path[0] {
+                                    let mut new_path = path.clone();
+                                    new_path.remove(0);
+                                    used_mods.push((mod_id, Some(new_path)));
                                 }
                             }
                             rustc_hir::UseKind::Glob => used_mods.push((mod_id, None)),
@@ -143,7 +215,9 @@ impl AnnotationCollectorCallbacks {
                     }
                     None => {
                         let maybe_res = AnnotationCollectorCallbacks::try_resolve_foreign_module(
-                            tcx, mod_id, path,
+                            tcx,
+                            mod_id,
+                            maybe_path.as_ref().unwrap_or(path),
                         );
                         if maybe_res.is_some() {
                             return maybe_res;
@@ -161,6 +235,7 @@ impl AnnotationCollectorCallbacks {
         path: &Vec<String>,
     ) -> Option<String> {
         println!("MOD_PATH: {}", tcx.def_path_str(foreign_mod));
+        println!("MY_PATH: {}", path.join("::"));
         for child in tcx.module_children(foreign_mod) {
             println!("IDENT: {}", child.ident);
             println!("RES: {:#?}", child.res);
@@ -216,8 +291,10 @@ impl AnnotationCollectorCallbacks {
     }
 
     fn is_absolute_path(path: &Vec<String>) -> bool {
-        let start = &path[0];
-        return start == "crate" || start == "super" || start == "self" || start == "{{root}}";
+        match path[0].as_str() {
+            "crate" | "super" | "self" | "{{root}}" => true,
+            _ => false,
+        }
     }
 
     fn extract_stub_by(
@@ -287,8 +364,7 @@ impl Callbacks for AnnotationCollectorCallbacks {
                     continue;
                 }
                 let mut stub_pairs = FxHashMap::default();
-                let current_module =
-                    tcx.parent_module(tcx.hir().local_def_id_to_hir_id(item.def_id));
+                let current_module = tcx.parent_module_from_def_id(item.def_id);
                 for (name, attr) in other {
                     if name == "stub_by" {
                         AnnotationCollectorCallbacks::update_stub_mapping(
