@@ -376,7 +376,7 @@ impl<'tcx> GotocCtx<'tcx> {
         for attr in other_attributes.iter() {
             match attr.0.as_str() {
                 "unwind" => self.handle_kanitool_unwind(attr.1, &mut harness),
-                "stub_by" => (), // Do nothing (this is handled on an earlier pass)
+                "stub" => (), // Do nothing (this is handled on an earlier pass)
                 _ => {
                     self.tcx.sess.span_err(
                         attr.1.span,

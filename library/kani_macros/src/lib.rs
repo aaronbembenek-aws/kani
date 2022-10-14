@@ -121,7 +121,7 @@ pub fn unwind(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[cfg(not(kani))]
 #[proc_macro_attribute]
-pub fn stub_by(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn stub(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // When the config is not kani, we should leave the function alone
     item
 }
@@ -129,12 +129,12 @@ pub fn stub_by(_attr: TokenStream, item: TokenStream) -> TokenStream {
 // FIXME(aaronbem)
 #[cfg(kani)]
 #[proc_macro_attribute]
-pub fn stub_by(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn stub(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut result = TokenStream::new();
 
-    // Translate #[kani::stub_by(original, replacement)] to
-    // #[kanitool::stub_by(original, replacement)]
-    let insert_string = "#[kanitool::stub_by(".to_owned() + &attr.to_string() + ")]";
+    // Translate #[kani::stub(original, replacement)] to
+    // #[kanitool::stub(original, replacement)]
+    let insert_string = "#[kanitool::stub(".to_owned() + &attr.to_string() + ")]";
     result.extend(insert_string.parse::<TokenStream>().unwrap());
 
     result.extend(item);

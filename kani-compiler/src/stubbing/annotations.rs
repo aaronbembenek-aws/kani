@@ -70,7 +70,7 @@ impl AnnotationCollectorCallbacks {
             println!("RESOLVED: {} --> {}", name, maybe_resolution.as_ref().unwrap());
             return maybe_resolution;
         }
-        tcx.sess.span_err(span, format!("kani::stub_by: unable to resolve {}", name));
+        tcx.sess.span_err(span, format!("kani::stub: unable to resolve {}", name));
         None
     }
 
@@ -297,7 +297,7 @@ impl AnnotationCollectorCallbacks {
         }
     }
 
-    fn extract_stub_by(
+    fn extract_stubbing_pair(
         tcx: TyCtxt,
         attr: &Attribute,
         current_module: LocalDefId,
@@ -321,7 +321,7 @@ impl AnnotationCollectorCallbacks {
                     .flatten();
             }
         }
-        tcx.sess.span_err(attr.span, "kani::stub_by takes two path arguments");
+        tcx.sess.span_err(attr.span, "kani::stub takes two path arguments");
         None
     }
 
@@ -332,7 +332,7 @@ impl AnnotationCollectorCallbacks {
         stub_pairs: &mut FxHashMap<String, String>,
     ) {
         if let Some((original, replacement)) =
-            AnnotationCollectorCallbacks::extract_stub_by(tcx, attr, current_module)
+            AnnotationCollectorCallbacks::extract_stubbing_pair(tcx, attr, current_module)
         {
             let other = stub_pairs.insert(original.clone(), replacement.clone());
             if let Some(other) = other {
@@ -366,7 +366,7 @@ impl Callbacks for AnnotationCollectorCallbacks {
                 let mut stub_pairs = FxHashMap::default();
                 let current_module = tcx.parent_module_from_def_id(item.def_id);
                 for (name, attr) in other {
-                    if name == "stub_by" {
+                    if name == "stub" {
                         AnnotationCollectorCallbacks::update_stub_mapping(
                             tcx,
                             current_module,
