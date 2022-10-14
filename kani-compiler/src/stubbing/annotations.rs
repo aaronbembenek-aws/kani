@@ -60,12 +60,14 @@ impl AnnotationCollectorCallbacks {
         current_module: LocalDefId,
     ) -> Option<String> {
         let path: Vec<String> = name.split("::").map(|s| s.to_string()).collect();
-        if AnnotationCollectorCallbacks::is_relative_path(&path) {
-            let maybe_resolution =
-                AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, current_module, &path);
-            if maybe_resolution.is_some() {
-                return maybe_resolution;
-            }
+        let maybe_resolution = if AnnotationCollectorCallbacks::is_absolute_path(&path) {
+            None
+        } else {
+            AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, current_module, &path)
+        };
+        if maybe_resolution.is_some() {
+            println!("RESOLVED: {} --> {}", name, maybe_resolution.as_ref().unwrap());
+            return maybe_resolution;
         }
         tcx.sess.span_err(span, format!("kani::stub_by: unable to resolve {}", name));
         None
@@ -89,7 +91,6 @@ impl AnnotationCollectorCallbacks {
                 ItemKind::Fn(..) => {
                     let fn_name = tcx.def_path_str(item.def_id.to_def_id());
                     if *qualified_name == fn_name {
-                        println!("RESOLVED: {} --> {}", &name, fn_name);
                         return Some(fn_name);
                     }
                 }
@@ -140,7 +141,50 @@ impl AnnotationCollectorCallbacks {
                             return maybe_res;
                         }
                     }
-                    None => unimplemented!("Cannot handle foreign modules"),
+                    None => {
+                        let maybe_res = AnnotationCollectorCallbacks::try_resolve_foreign_module(
+                            tcx, mod_id, path,
+                        );
+                        if maybe_res.is_some() {
+                            return maybe_res;
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn try_resolve_foreign_module(
+        tcx: TyCtxt,
+        foreign_mod: DefId,
+        path: &Vec<String>,
+    ) -> Option<String> {
+        println!("MOD_PATH: {}", tcx.def_path_str(foreign_mod));
+        for child in tcx.module_children(foreign_mod) {
+            println!("IDENT: {}", child.ident);
+            println!("RES: {:#?}", child.res);
+            if child.ident.as_str() == path[0] {
+                match child.res {
+                    Res::Def(DefKind::Fn, def_id) => {
+                        if path.len() == 1 {
+                            return Some(tcx.def_path_str(def_id));
+                        }
+                    }
+                    Res::Def(DefKind::Mod, def_id) => {
+                        if path.len() > 1 {
+                            let mut path = path.clone();
+                            path.remove(0);
+                            let maybe_res =
+                                AnnotationCollectorCallbacks::try_resolve_foreign_module(
+                                    tcx, def_id, &path,
+                                );
+                            if maybe_res.is_some() {
+                                return maybe_res;
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -171,8 +215,9 @@ impl AnnotationCollectorCallbacks {
         TryResolveUseResult::NotResolved
     }
 
-    fn is_relative_path(_path: &Vec<String>) -> bool {
-        return true;
+    fn is_absolute_path(path: &Vec<String>) -> bool {
+        let start = &path[0];
+        return start == "crate" || start == "super" || start == "self" || start == "{{root}}";
     }
 
     fn extract_stub_by(
@@ -227,20 +272,12 @@ impl AnnotationCollectorCallbacks {
 }
 
 impl Callbacks for AnnotationCollectorCallbacks {
-    fn after_expansion<'tcx>(
+    fn after_analysis<'tcx>(
         &mut self,
         _compiler: &Compiler,
         queries: &'tcx Queries<'tcx>,
     ) -> Compilation {
         queries.global_ctxt().unwrap().peek_mut().enter(|tcx| {
-            /*
-            for local_def_id in tcx.hir_crate_items(()).definitions().into_iter() {
-                println!("DEFINITION: {}", tcx.def_path_str(local_def_id.to_def_id()));
-            }
-            for foreign_item_id in tcx.hir_crate_items(()).foreign_items().into_iter() {
-                println!("FOREIGN ITEM: {}", tcx.def_path_str(foreign_item_id.def_id.to_def_id()));
-            }
-            */
             for item in tcx.hir_crate_items(()).items() {
                 let def_id = item.def_id.to_def_id();
                 //println!("ITEM: {}", tcx.def_path_str(def_id));
