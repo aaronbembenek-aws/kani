@@ -64,7 +64,19 @@ impl AnnotationCollectorCallbacks {
         let maybe_resolution = if AnnotationCollectorCallbacks::is_absolute_path(&path) {
             AnnotationCollectorCallbacks::try_resolve_absolute_path(tcx, current_module, &path)
         } else {
-            AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, current_module, &path)
+            let o =
+                AnnotationCollectorCallbacks::try_resolve_relative_path(tcx, current_module, &path);
+            if o.is_some() {
+                o
+            } else {
+                let mut new_path = path.clone();
+                new_path.insert(0, "{{root}}".to_string());
+                AnnotationCollectorCallbacks::try_resolve_absolute_path(
+                    tcx,
+                    current_module,
+                    &new_path,
+                )
+            }
         };
         if maybe_resolution.is_some() {
             println!("RESOLVED: {} --> {}", name, maybe_resolution.as_ref().unwrap());
