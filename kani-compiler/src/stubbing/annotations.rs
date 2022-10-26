@@ -149,11 +149,15 @@ impl AnnotationCollectorCallbacks {
                     path.remove(0);
                     let first = path.remove(0);
                     for crate_num in tcx.crates(()) {
-                        println!("INSPECTING A CRATE");
                         let crate_name = tcx.crate_name(*crate_num);
+                        println!("INSPECTING A CRATE: {}", crate_name);
                         if crate_name.as_str() == first {
                             let crate_def_id = DefId { index: CRATE_DEF_INDEX, krate: *crate_num };
                             println!("FOUND {}", tcx.def_path_str(crate_def_id));
+                            // FIXME(aaronbem)
+                            if crate_name.as_str() == "std" {
+                                path.insert(0, first);
+                            }
                             return AnnotationCollectorCallbacks::try_resolve_foreign_module(
                                 tcx,
                                 crate_def_id,
@@ -251,6 +255,18 @@ impl AnnotationCollectorCallbacks {
         for child in tcx.module_children(foreign_mod) {
             println!("IDENT: {}", child.ident);
             println!("RES: {:#?}", child.res);
+            if child.ident.as_str() == "std" {
+                println!("Found standard");
+                match child.res {
+                    Res::Def(DefKind::Mod, def_id) => {
+                        for child in tcx.module_children(def_id) {
+                            println!("CHILD IDENT: {}", child.ident);
+                            println!("CHILD RES: {:#?}", child.res);
+                        }
+                    }
+                    _ => {}
+                }
+            }
             if child.ident.as_str() == path[0] {
                 match child.res {
                     Res::Def(DefKind::Fn, def_id) => {
