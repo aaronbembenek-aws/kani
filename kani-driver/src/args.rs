@@ -5,10 +5,10 @@
 use crate::unsound_experiments::UnsoundExperimentArgs;
 
 use anyhow::bail;
+use clap::StructOpt;
 use clap::{arg_enum, Error, ErrorKind};
 use std::ffi::OsString;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 // By default we configure CBMC to use 16 bits to represent the object bits in pointers.
 const DEFAULT_OBJECT_BITS: u32 = 16;
@@ -17,7 +17,7 @@ const DEFAULT_OBJECT_BITS: u32 = 16;
 #[structopt(
     name = "kani",
     about = "Verify a single Rust crate. For more information, see https://github.com/model-checking/kani",
-    setting = structopt::clap::AppSettings::AllArgsOverrideSelf
+    setting = clap::AppSettings::AllArgsOverrideSelf
 )]
 pub struct StandaloneArgs {
     /// Rust file to verify
@@ -32,7 +32,7 @@ pub struct StandaloneArgs {
 #[structopt(
     name = "cargo-kani",
     about = "Verify a Rust crate. For more information, see https://github.com/model-checking/kani",
-    setting = structopt::clap::AppSettings::AllArgsOverrideSelf
+    setting = clap::AppSettings::AllArgsOverrideSelf
 )]
 pub struct CargoKaniArgs {
     #[structopt(subcommand)]
@@ -45,7 +45,7 @@ pub struct CargoKaniArgs {
 // cargo-kani takes optional subcommands to request specialized behavior
 #[derive(Debug, StructOpt)]
 pub enum CargoKaniSubcommand {
-    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    #[structopt(setting(clap::AppSettings::Hidden))]
     Assess,
 }
 
@@ -69,7 +69,7 @@ pub struct KaniArgs {
         long,
         requires("enable-unstable"),
         conflicts_with_all(&["visualize", "dry-run"]),
-        possible_values = &ConcretePlaybackMode::variants(),
+        possible_values = ConcretePlaybackMode::variants(),
         case_insensitive = true,
     )]
     pub concrete_playback: Option<ConcretePlaybackMode>,
@@ -84,7 +84,7 @@ pub struct KaniArgs {
     #[structopt(long, short)]
     pub quiet: bool,
     /// Output processing stages and commands, along with minor debug information
-    #[structopt(long, short, default_value_if("debug", None, "true"), min_values(0))]
+    #[structopt(long, short, default_value_if("debug", None, Some("true")), min_values(0))]
     pub verbose: bool,
     /// Enable usage of unstable options
     #[structopt(long, hidden_short_help(true))]
@@ -107,7 +107,7 @@ pub struct KaniArgs {
     pub target_dir: Option<PathBuf>,
 
     /// Toggle between different styles of output
-    #[structopt(long, default_value = "regular", possible_values = &OutputFormat::variants(), case_insensitive = true)]
+    #[structopt(long, default_value = "regular", possible_values = OutputFormat::variants(), case_insensitive = true)]
     pub output_format: OutputFormat,
 
     #[structopt(flatten)]
@@ -185,7 +185,7 @@ pub struct KaniArgs {
     // Hide option till https://github.com/model-checking/kani/issues/697 is
     // fixed.
     /// Choose abstraction for modules of standard library if available
-    #[structopt(long, default_value = "std", possible_values = &AbstractionType::variants(),
+    #[structopt(long, default_value = "std", possible_values = AbstractionType::variants(),
     case_insensitive = true, hidden = true)]
     pub abs_type: AbstractionType,
 
@@ -427,33 +427,35 @@ impl KaniArgs {
         // We should consider improving the error messages slightly in a later pull request.
         if natives_unwind && extra_unwind {
             return Err(Error::with_description(
-                "Conflicting flags: unwind flags provided to kani and in --cbmc-args.",
+                "Conflicting flags: unwind flags provided to kani and in --cbmc-args.".to_string(),
                 ErrorKind::ArgumentConflict,
             ));
         }
         if self.cbmc_args.contains(&OsString::from("--function")) {
             return Err(Error::with_description(
-                "Invalid flag: --function should be provided to Kani directly, not via --cbmc-args.",
+                "Invalid flag: --function should be provided to Kani directly, not via --cbmc-args.".to_string(),
                 ErrorKind::ArgumentConflict,
             ));
         }
         if self.quiet && self.concrete_playback == Some(ConcretePlaybackMode::Print) {
             return Err(Error::with_description(
-                "Conflicting options: --concrete-playback=print and --quiet.",
+                "Conflicting options: --concrete-playback=print and --quiet.".to_string(),
                 ErrorKind::ArgumentConflict,
             ));
         }
         if self.concrete_playback.is_some() && self.output_format == OutputFormat::Old {
             return Err(Error::with_description(
                 "Conflicting options: --concrete-playback isn't compatible with \
-                --output-format=old.",
+                --output-format=old."
+                    .to_string(),
                 ErrorKind::ArgumentConflict,
             ));
         }
         if self.concrete_playback.is_some() && self.jobs() != Some(1) {
             // Concrete playback currently embeds a lot of assumptions about the order in which harnesses get called.
             return Err(Error::with_description(
-                "Conflicting options: --concrete-playback isn't compatible with --jobs.",
+                "Conflicting options: --concrete-playback isn't compatible with --jobs."
+                    .to_string(),
                 ErrorKind::ArgumentConflict,
             ));
         }
@@ -461,7 +463,7 @@ impl KaniArgs {
             // More verbose output formats make it hard to interpret output right now when run in parallel.
             // This can be removed when we change up how results are printed.
             return Err(Error::with_description(
-                "Conflicting options: --jobs requires `--output-format=terse`",
+                "Conflicting options: --jobs requires `--output-format=terse`".to_string(),
                 ErrorKind::ArgumentConflict,
             ));
         }
@@ -520,13 +522,13 @@ mod tests {
         assert_eq!(err.kind, ErrorKind::MissingRequiredArgument);
     }
 
-    fn parse_unstable_disabled(args: &str) -> Result<ArgMatches<'_>, Error> {
+    fn parse_unstable_disabled(args: &str) -> Result<ArgMatches, Error> {
         let args = format!("kani file.rs {args}");
         let app = StandaloneArgs::clap();
         app.get_matches_from_safe(args.split(' '))
     }
 
-    fn parse_unstable_enabled(args: &str) -> Result<ArgMatches<'_>, Error> {
+    fn parse_unstable_enabled(args: &str) -> Result<ArgMatches, Error> {
         let args = format!("kani --enable-unstable file.rs {args}");
         let app = StandaloneArgs::clap();
         app.get_matches_from_safe(args.split(' '))

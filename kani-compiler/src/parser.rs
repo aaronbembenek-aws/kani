@@ -1,10 +1,7 @@
 // Copyright Kani Contributors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use clap::{
-    app_from_crate, crate_authors, crate_description, crate_name, crate_version, App, AppSettings,
-    Arg, ArgMatches,
-};
+use clap::{command, Arg, ArgMatches, Command};
 use kani_queries::ReachabilityType;
 use std::env;
 use std::str::FromStr;
@@ -65,11 +62,11 @@ const KANIFLAGS_ENV_VAR: &str = "KANIFLAGS";
 const KANI_ARGS_FLAG: &str = "--kani-flags";
 
 /// Configure command options for the Kani compiler.
-pub fn parser<'a, 'b>() -> App<'a, 'b> {
-    let app = app_from_crate!()
-        .setting(AppSettings::TrailingVarArg) // This allow us to fwd commands to rustc.
-        .setting(clap::AppSettings::AllowLeadingHyphen)
-        .version_short("?")
+pub fn parser<'a>() -> Command<'a> {
+    let app = command!()
+        .trailing_var_arg(true) // This allow us to fwd commands to rustc.
+        .allow_hyphen_values(true)
+        .version_short('?')
         .arg(
             Arg::with_name(KANI_LIB)
                 .long("--kani-lib")
@@ -131,7 +128,7 @@ pub fn parser<'a, 'b>() -> App<'a, 'b> {
         .arg(
             // TODO: Move this to a cargo wrapper. This should return kani version.
             Arg::with_name(RUSTC_VERSION)
-                .short("V")
+                .short('V')
                 .long("--version")
                 .help("Gets underlying rustc version."),
         )
@@ -189,7 +186,7 @@ pub trait KaniCompilerParser {
     fn reachability_type(&self) -> ReachabilityType;
 }
 
-impl<'a> KaniCompilerParser for ArgMatches<'a> {
+impl<'a> KaniCompilerParser for ArgMatches {
     fn reachability_type(&self) -> ReachabilityType {
         self.value_of(REACHABILITY)
             .map_or(ReachabilityType::None, |arg| ReachabilityType::from_str(arg).unwrap())
