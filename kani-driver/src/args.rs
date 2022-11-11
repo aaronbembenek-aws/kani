@@ -6,7 +6,7 @@ use crate::unsound_experiments::UnsoundExperimentArgs;
 
 use anyhow::bail;
 use clap::StructOpt;
-use clap::{arg_enum, Error, ErrorKind};
+use clap::{Error, ErrorKind, ValueEnum};
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -21,7 +21,7 @@ const DEFAULT_OBJECT_BITS: u32 = 16;
 )]
 pub struct StandaloneArgs {
     /// Rust file to verify
-    #[structopt(parse(from_os_str))]
+    #[clap(value_parser)]
     pub input: PathBuf,
 
     #[structopt(flatten)]
@@ -45,7 +45,7 @@ pub struct CargoKaniArgs {
 // cargo-kani takes optional subcommands to request specialized behavior
 #[derive(Debug, StructOpt)]
 pub enum CargoKaniSubcommand {
-    #[structopt(setting(clap::AppSettings::Hidden))]
+    #[clap(hide = true)]
     Assess,
 }
 
@@ -55,7 +55,7 @@ pub enum CargoKaniSubcommand {
 pub struct KaniArgs {
     /// Temporary option to trigger assess mode for out test suite
     /// where we are able to add options but not subcommands
-    #[structopt(long, hidden = true, requires("enable-unstable"))]
+    #[structopt(long, hide = true, requires("enable-unstable"))]
     pub assess: bool,
 
     /// Generate visualizer report to <target-dir>/report/html/index.html
@@ -69,9 +69,9 @@ pub struct KaniArgs {
         long,
         requires("enable-unstable"),
         conflicts_with_all(&["visualize", "dry-run"]),
-        possible_values = ConcretePlaybackMode::variants(),
         case_insensitive = true,
     )]
+    #[clap(value_enum)]
     pub concrete_playback: Option<ConcretePlaybackMode>,
     /// Keep temporary files generated throughout Kani process
     #[structopt(long, hidden_short_help(true))]
@@ -103,11 +103,13 @@ pub struct KaniArgs {
 
     // TODO: currently only cargo-kani pays attention to this.
     /// Directory for all generated artifacts. Only effective when running Kani with cargo
-    #[structopt(long, parse(from_os_str))]
+    #[structopt(long)]
+    #[clap(value_parser)]
     pub target_dir: Option<PathBuf>,
 
     /// Toggle between different styles of output
-    #[structopt(long, default_value = "regular", possible_values = OutputFormat::variants(), case_insensitive = true)]
+    #[structopt(long, default_value = "regular", case_insensitive = true)]
+    #[clap(value_enum)]
     pub output_format: OutputFormat,
 
     #[structopt(flatten)]
@@ -119,7 +121,7 @@ pub struct KaniArgs {
 
     /// Entry point for verification (symbol name).
     /// This is an unstable feature. Consider using --harness instead
-    #[structopt(long, hidden = true, requires("enable-unstable"), conflicts_with("dry-run"))]
+    #[structopt(long, hide = true, requires("enable-unstable"), conflicts_with("dry-run"))]
     pub function: Option<String>,
     /// Entry point for verification (proof harness)
     // In a dry-run, we don't have kani-metadata.json to read, so we can't use this flag
@@ -128,7 +130,8 @@ pub struct KaniArgs {
 
     /// Link external C files referenced by Rust code.
     /// This is an experimental feature and requires `--enable-unstable` to be used
-    #[structopt(long, parse(from_os_str), hidden = true, requires("enable-unstable"))]
+    #[structopt(long, hide = true, requires("enable-unstable"))]
+    #[clap(value_parser)]
     pub c_lib: Vec<PathBuf>,
     /// Enable test function verification. Only use this option when the entry point is a test function
     #[structopt(long)]
@@ -278,21 +281,17 @@ impl KaniArgs {
     }
 }
 
-arg_enum! {
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    pub enum ConcretePlaybackMode {
-        Print,
-        InPlace,
-    }
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum ConcretePlaybackMode {
+    Print,
+    InPlace,
 }
 
-arg_enum! {
-    #[derive(Debug, PartialEq, Eq)]
-    pub enum OutputFormat {
-        Regular,
-        Terse,
-        Old,
-    }
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum OutputFormat {
+    Regular,
+    Terse,
+    Old,
 }
 
 #[derive(Debug, PartialEq, Eq)]

@@ -1,7 +1,7 @@
 // Copyright Kani Contributors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use clap::{command, Arg, ArgMatches, Command};
+use clap::{command, Arg, ArgAction, ArgMatches, Command};
 use kani_queries::ReachabilityType;
 use std::env;
 use std::str::FromStr;
@@ -72,12 +72,14 @@ pub fn parser<'a>() -> Command<'a> {
                 .long("--kani-lib")
                 .value_name("FOLDER_PATH")
                 .help("Sets the path to locate the kani library.")
-                .takes_value(true),
+                .takes_value(true)
+                .action(ArgAction::StoreValue),
         )
         .arg(
             Arg::with_name(GOTO_C)
                 .long("--goto-c")
-                .help("Enables compilation to goto-c intermediate representation."),
+                .help("Enables compilation to goto-c intermediate representation.")
+                .action(ArgAction::IncOccurrence),
         )
         .arg(
             Arg::with_name(SYM_TABLE_PASSES)
@@ -86,7 +88,8 @@ pub fn parser<'a>() -> Command<'a> {
                 .help("Transformations to perform to the symbol table after it has been generated.")
                 .takes_value(true)
                 .use_delimiter(true)
-                .multiple(true),
+                .multiple(true)
+                .action(ArgAction::StoreValue),
         )
         .arg(
             Arg::with_name(LOG_LEVEL)
@@ -97,23 +100,27 @@ pub fn parser<'a>() -> Command<'a> {
                 .help(
                     "Sets the maximum log level to the value given. Use KANI_LOG for more granular \
             control.",
-                ),
+                )
+                .action(ArgAction::StoreValue),
         )
         .arg(
             Arg::with_name(JSON_OUTPUT)
                 .long("--json-output")
-                .help("Print output including logs in json format."),
+                .help("Print output including logs in json format.")
+                .action(ArgAction::IncOccurrence),
         )
         .arg(
             Arg::with_name(COLOR_OUTPUT)
                 .long("--color-output")
                 .help("Print output using colors.")
-                .conflicts_with(JSON_OUTPUT),
+                .conflicts_with(JSON_OUTPUT)
+                .action(ArgAction::IncOccurrence),
         )
         .arg(
             Arg::with_name(RESTRICT_FN_PTRS)
                 .long("--restrict-vtable-fn-ptrs")
-                .help("Restrict the targets of virtual table function pointer calls."),
+                .help("Restrict the targets of virtual table function pointer calls.")
+                .action(ArgAction::IncOccurrence),
         )
         .arg(
             Arg::with_name(SYSROOT)
@@ -123,25 +130,29 @@ pub fn parser<'a>() -> Command<'a> {
                 .long_help(
                     "The \"sysroot\" is the location where Kani will look for the Rust \
                 distribution.",
-                ),
+                )
+                .action(ArgAction::StoreValue),
         )
         .arg(
             // TODO: Move this to a cargo wrapper. This should return kani version.
             Arg::with_name(RUSTC_VERSION)
                 .short('V')
                 .long("--version")
-                .help("Gets underlying rustc version."),
+                .help("Gets underlying rustc version.")
+                .action(ArgAction::IncOccurrence),
         )
         .arg(
             Arg::with_name(RUSTC_OPTIONS)
                 .help("Arguments to be passed down to rustc.")
                 .multiple(true)
-                .takes_value(true),
+                .takes_value(true)
+                .action(ArgAction::StoreValue),
         )
         .arg(
             Arg::with_name(ASSERTION_REACH_CHECKS)
                 .long("--assertion-reach-checks")
-                .help("Check the reachability of every assertion."),
+                .help("Check the reachability of every assertion.")
+                .action(ArgAction::IncOccurrence),
         )
         .arg(
             Arg::with_name(REACHABILITY)
@@ -149,17 +160,20 @@ pub fn parser<'a>() -> Command<'a> {
                 .possible_values(ReachabilityType::VARIANTS)
                 .required(false)
                 .default_value(ReachabilityType::None.as_ref())
-                .help("Selects the type of reachability analysis to perform."),
+                .help("Selects the type of reachability analysis to perform.")
+                .action(ArgAction::StoreValue),
         )
         .arg(
             Arg::with_name(PRETTY_OUTPUT_FILES)
                 .long("--pretty-json-files")
-                .help("Output json files in a more human-readable format (with spaces)."),
+                .help("Output json files in a more human-readable format (with spaces).")
+                .action(ArgAction::IncOccurrence),
         )
         .arg(
             Arg::with_name(IGNORE_GLOBAL_ASM)
                 .long("--ignore-global-asm")
-                .help("Suppress error due to the existence of global_asm in a crate"),
+                .help("Suppress error due to the existence of global_asm in a crate")
+                .action(ArgAction::IncOccurrence),
         )
         .arg(
             // TODO: Remove this argument once stubbing works for multiple harnesses at a time.
@@ -168,13 +182,15 @@ pub fn parser<'a>() -> Command<'a> {
                 .long("--harness")
                 .help("Selects the harness to target.")
                 .value_name("HARNESS")
-                .takes_value(true),
+                .takes_value(true)
+                .action(ArgAction::StoreValue),
         )
         .arg(
             Arg::with_name(ENABLE_STUBBING)
                 .long("--enable-stubbing")
                 .help("Instruct the compiler to perform stubbing.")
-                .requires(HARNESS),
+                .requires(HARNESS)
+                .action(ArgAction::IncOccurrence),
         );
     #[cfg(feature = "unsound_experiments")]
     let app = crate::unsound_experiments::arg_parser::add_unsound_experiments_to_parser(app);
