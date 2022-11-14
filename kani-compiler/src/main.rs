@@ -253,8 +253,8 @@ mod args_test {
     use crate::parser;
     #[cfg(unix)]
     #[test]
-    #[should_panic]
     fn test_invalid_arg_fails() {
+        use clap::ErrorKind;
         use std::ffi::OsString;
         use std::os::unix::ffi::OsStrExt;
 
@@ -263,11 +263,12 @@ mod args_test {
         let os_str = OsStr::from_bytes(&source[..]);
         assert_eq!(os_str.to_str(), None);
 
-        let _matches = parser::parser().get_matches_from(vec![
+        let matches = parser::parser().get_matches_from_safe(vec![
+            OsString::from("kani-compiler").as_os_str(),
             OsString::from("--sysroot").as_os_str(),
             OsString::from("any").as_os_str(),
             os_str,
         ]);
-        //generate_rustc_args(&matches);
+        assert_eq!(matches.unwrap_err().kind, ErrorKind::InvalidUtf8);
     }
 }
