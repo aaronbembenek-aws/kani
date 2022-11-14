@@ -283,6 +283,7 @@ impl KaniArgs {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
 pub enum ConcretePlaybackMode {
     Print,
+    #[clap(name = "inplace")]
     InPlace,
 }
 
@@ -300,6 +301,7 @@ pub enum AbstractionType {
     CFfi,
     NoBack,
 }
+/*
 // We need customization to support dashes like 'no-back'
 impl std::str::FromStr for AbstractionType {
     type Err = anyhow::Error;
@@ -314,6 +316,7 @@ impl std::str::FromStr for AbstractionType {
         }
     }
 }
+*/
 impl std::fmt::Display for AbstractionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
