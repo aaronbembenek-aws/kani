@@ -73,13 +73,13 @@ pub fn parser<'a>() -> Command<'a> {
                 .value_name("FOLDER_PATH")
                 .help("Sets the path to locate the kani library.")
                 .takes_value(true)
-                .action(ArgAction::StoreValue),
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new(GOTO_C)
                 .long("--goto-c")
                 .help("Enables compilation to goto-c intermediate representation.")
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new(SYM_TABLE_PASSES)
@@ -88,8 +88,7 @@ pub fn parser<'a>() -> Command<'a> {
                 .help("Transformations to perform to the symbol table after it has been generated.")
                 .takes_value(true)
                 .use_value_delimiter(true)
-                .multiple_occurrences(true)
-                .action(ArgAction::StoreValue),
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new(LOG_LEVEL)
@@ -101,26 +100,26 @@ pub fn parser<'a>() -> Command<'a> {
                     "Sets the maximum log level to the value given. Use KANI_LOG for more granular \
             control.",
                 )
-                .action(ArgAction::StoreValue),
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new(JSON_OUTPUT)
                 .long("--json-output")
                 .help("Print output including logs in json format.")
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new(COLOR_OUTPUT)
                 .long("--color-output")
                 .help("Print output using colors.")
                 .conflicts_with(JSON_OUTPUT)
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new(RESTRICT_FN_PTRS)
                 .long("--restrict-vtable-fn-ptrs")
                 .help("Restrict the targets of virtual table function pointer calls.")
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new(SYSROOT)
@@ -131,7 +130,7 @@ pub fn parser<'a>() -> Command<'a> {
                     "The \"sysroot\" is the location where Kani will look for the Rust \
                 distribution.",
                 )
-                .action(ArgAction::StoreValue),
+                .action(ArgAction::Set),
         )
         .arg(
             // TODO: Move this to a cargo wrapper. This should return kani version.
@@ -139,20 +138,19 @@ pub fn parser<'a>() -> Command<'a> {
                 .short('V')
                 .long("--version")
                 .help("Gets underlying rustc version.")
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new(RUSTC_OPTIONS)
                 .help("Arguments to be passed down to rustc.")
-                .multiple_occurrences(true)
                 .takes_value(true)
-                .action(ArgAction::StoreValue),
+                .action(ArgAction::Append),
         )
         .arg(
             Arg::new(ASSERTION_REACH_CHECKS)
                 .long("--assertion-reach-checks")
                 .help("Check the reachability of every assertion.")
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new(REACHABILITY)
@@ -161,19 +159,19 @@ pub fn parser<'a>() -> Command<'a> {
                 .required(false)
                 .default_value(ReachabilityType::None.as_ref())
                 .help("Selects the type of reachability analysis to perform.")
-                .action(ArgAction::StoreValue),
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new(PRETTY_OUTPUT_FILES)
                 .long("--pretty-json-files")
                 .help("Output json files in a more human-readable format (with spaces).")
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new(IGNORE_GLOBAL_ASM)
                 .long("--ignore-global-asm")
                 .help("Suppress error due to the existence of global_asm in a crate")
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         )
         .arg(
             // TODO: Remove this argument once stubbing works for multiple harnesses at a time.
@@ -183,14 +181,14 @@ pub fn parser<'a>() -> Command<'a> {
                 .help("Selects the harness to target.")
                 .value_name("HARNESS")
                 .takes_value(true)
-                .action(ArgAction::StoreValue),
+                .action(ArgAction::Set),
         )
         .arg(
             Arg::new(ENABLE_STUBBING)
                 .long("--enable-stubbing")
                 .help("Instruct the compiler to perform stubbing.")
                 .requires(HARNESS)
-                .action(ArgAction::IncOccurrence),
+                .action(ArgAction::SetTrue),
         );
     #[cfg(feature = "unsound_experiments")]
     let app = crate::unsound_experiments::arg_parser::add_unsound_experiments_to_parser(app);
@@ -256,14 +254,14 @@ mod parser_test {
     fn test_rustc_version() {
         let args = vec!["kani-compiler", "-V"];
         let matches = parser().get_matches_from(args);
-        assert!(matches.is_present("rustc-version"));
+        assert!(matches.get_flag("rustc-version"));
     }
 
     #[test]
     fn test_kani_flags() {
         let args = vec!["kani-compiler", "--goto-c", "--kani-lib", "some/path"];
         let matches = parser().get_matches_from(args);
-        assert!(matches.is_present("goto-c"));
+        assert!(matches.get_flag("goto-c"));
         assert_eq!(matches.get_one::<&str>("kani-lib"), Some(&"some/path"));
     }
 
@@ -271,7 +269,7 @@ mod parser_test {
     fn test_stubbing_flags() {
         let args = vec!["kani-compiler", "--enable-stubbing", "--harness", "foo"];
         let matches = parser().get_matches_from(args);
-        assert!(matches.is_present("enable-stubbing"));
+        assert!(matches.get_flag("enable-stubbing"));
         assert_eq!(matches.get_one::<&str>("harness"), Some(&"foo"));
 
         // `--enable-stubbing` cannot be called without `--harness`
