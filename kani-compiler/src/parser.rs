@@ -66,7 +66,7 @@ pub fn parser<'a>() -> Command<'a> {
     let app = command!()
         .trailing_var_arg(true) // This allow us to fwd commands to rustc.
         .allow_hyphen_values(true)
-        .version_short('?')
+        .mut_arg("version", |a| a.short('?').long("kani-compiler-version"))
         .arg(
             Arg::new(KANI_LIB)
                 .long("--kani-lib")
@@ -200,9 +200,9 @@ pub trait KaniCompilerParser {
     fn reachability_type(&self) -> ReachabilityType;
 }
 
-impl<'a> KaniCompilerParser for ArgMatches {
+impl KaniCompilerParser for ArgMatches {
     fn reachability_type(&self) -> ReachabilityType {
-        self.get_one::<&str>(REACHABILITY)
+        self.get_one::<String>(REACHABILITY)
             .map_or(ReachabilityType::None, |arg| ReachabilityType::from_str(arg).unwrap())
     }
 }
@@ -262,7 +262,7 @@ mod parser_test {
         let args = vec!["kani-compiler", "--goto-c", "--kani-lib", "some/path"];
         let matches = parser().get_matches_from(args);
         assert!(matches.get_flag("goto-c"));
-        assert_eq!(matches.get_one::<&str>("kani-lib"), Some(&"some/path"));
+        assert_eq!(matches.get_one::<String>("kani-lib"), Some(&"some/path".to_string()));
     }
 
     #[test]
@@ -270,7 +270,7 @@ mod parser_test {
         let args = vec!["kani-compiler", "--enable-stubbing", "--harness", "foo"];
         let matches = parser().get_matches_from(args);
         assert!(matches.get_flag("enable-stubbing"));
-        assert_eq!(matches.get_one::<&str>("harness"), Some(&"foo"));
+        assert_eq!(matches.get_one::<String>("harness"), Some(&"foo".to_string()));
 
         // `--enable-stubbing` cannot be called without `--harness`
         let args = vec!["kani-compiler", "--enable-stubbing"];
