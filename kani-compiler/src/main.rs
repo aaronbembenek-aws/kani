@@ -89,7 +89,7 @@ fn main() -> Result<(), &'static str> {
 
     // Configure queries.
     let mut queries = QueryDb::default();
-    if let Some(symbol_table_passes) = matches.values_of_os(parser::SYM_TABLE_PASSES) {
+    if let Some(symbol_table_passes) = matches.get_raw(parser::SYM_TABLE_PASSES) {
         queries.set_symbol_table_passes(symbol_table_passes.map(convert_arg).collect::<Vec<_>>());
     }
     queries.set_emit_vtable_restrictions(matches.is_present(parser::RESTRICT_FN_PTRS));
@@ -159,7 +159,7 @@ fn generate_rustc_args(args: &ArgMatches) -> Vec<String> {
             default_path.push("lib");
         }
         let gotoc_args = rustc_gotoc_flags(
-            args.value_of(parser::KANI_LIB).unwrap_or(default_path.to_str().unwrap()),
+            args.get_one::<&str>(parser::KANI_LIB).unwrap_or(&default_path.to_str().unwrap()),
         );
         rustc_args.extend_from_slice(&gotoc_args);
     }
@@ -172,7 +172,7 @@ fn generate_rustc_args(args: &ArgMatches) -> Vec<String> {
         rustc_args.push(String::from("--error-format=json"));
     }
 
-    if let Some(extra_flags) = args.values_of_os(parser::RUSTC_OPTIONS) {
+    if let Some(extra_flags) = args.get_raw(parser::RUSTC_OPTIONS) {
         extra_flags.for_each(|arg| rustc_args.push(convert_arg(arg)));
     }
     let sysroot = sysroot_path(args);

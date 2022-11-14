@@ -55,7 +55,7 @@ pub fn init_session(args: &ArgMatches) {
 /// Initialize the logger using the KANI_LOG environment variable and the --log-level argument.
 fn init_logger(args: &ArgMatches) {
     let filter = EnvFilter::from_env(LOG_ENV_VAR);
-    let filter = if let Some(log_level) = args.value_of(parser::LOG_LEVEL) {
+    let filter = if let Some(log_level) = args.get_one::<&str>(parser::LOG_LEVEL) {
         filter.add_directive(Directive::from_str(log_level).unwrap())
     } else {
         filter

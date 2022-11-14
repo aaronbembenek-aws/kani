@@ -5,15 +5,14 @@
 use crate::unsound_experiments::UnsoundExperimentArgs;
 
 use anyhow::bail;
-use clap::StructOpt;
-use clap::{Error, ErrorKind, ValueEnum};
+use clap::{Error, ErrorKind, Parser, ValueEnum};
 use std::ffi::OsString;
 use std::path::PathBuf;
 
 // By default we configure CBMC to use 16 bits to represent the object bits in pointers.
 const DEFAULT_OBJECT_BITS: u32 = 16;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 #[structopt(
     name = "kani",
     about = "Verify a single Rust crate. For more information, see https://github.com/model-checking/kani",
@@ -28,7 +27,7 @@ pub struct StandaloneArgs {
     pub common_opts: KaniArgs,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 #[structopt(
     name = "cargo-kani",
     about = "Verify a Rust crate. For more information, see https://github.com/model-checking/kani",
@@ -43,7 +42,7 @@ pub struct CargoKaniArgs {
 }
 
 // cargo-kani takes optional subcommands to request specialized behavior
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub enum CargoKaniSubcommand {
     #[clap(hide = true)]
     Assess,
@@ -51,7 +50,7 @@ pub enum CargoKaniSubcommand {
 
 // Common arguments for invoking Kani. This gets put into KaniContext, whereas
 // anything above is "local" to "main"'s control flow.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct KaniArgs {
     /// Temporary option to trigger assess mode for out test suite
     /// where we are able to add options but not subcommands
@@ -69,12 +68,12 @@ pub struct KaniArgs {
         long,
         requires("enable-unstable"),
         conflicts_with_all(&["visualize", "dry-run"]),
-        case_insensitive = true,
+        ignore_case = true,
     )]
     #[clap(value_enum)]
     pub concrete_playback: Option<ConcretePlaybackMode>,
     /// Keep temporary files generated throughout Kani process
-    #[structopt(long, hidden_short_help(true))]
+    #[structopt(long, hide_short_help = true)]
     pub keep_temps: bool,
 
     /// Produce full debug information
@@ -87,18 +86,18 @@ pub struct KaniArgs {
     #[structopt(long, short, default_value_if("debug", None, Some("true")), min_values(0))]
     pub verbose: bool,
     /// Enable usage of unstable options
-    #[structopt(long, hidden_short_help(true))]
+    #[structopt(long, hide_short_help = true)]
     pub enable_unstable: bool,
 
     // Hide this since it depends on function that is a hidden option.
     /// Print commands instead of running them. This command uses "harness" as a place holder for
     /// name of the target harness.
-    #[structopt(long, hidden(true), requires("enable-unstable"))]
+    #[structopt(long, hide = true, requires("enable-unstable"))]
     pub dry_run: bool,
 
     /// Generate C file equivalent to inputted program.
     /// This feature is unstable and it requires `--enable-unstable` to be used
-    #[structopt(long, hidden_short_help(true), requires("enable-unstable"))]
+    #[structopt(long, hide_short_help = true, requires("enable-unstable"))]
     pub gen_c: bool,
 
     // TODO: currently only cargo-kani pays attention to this.
@@ -108,7 +107,7 @@ pub struct KaniArgs {
     pub target_dir: Option<PathBuf>,
 
     /// Toggle between different styles of output
-    #[structopt(long, default_value = "regular", case_insensitive = true)]
+    #[structopt(long, default_value = "regular", ignore_case = true)]
     #[clap(value_enum)]
     pub output_format: OutputFormat,
 
@@ -137,12 +136,12 @@ pub struct KaniArgs {
     #[structopt(long)]
     pub tests: bool,
     /// Kani will only compile the crate. No verification will be performed
-    #[structopt(long, hidden_short_help(true))]
+    #[structopt(long, hide_short_help = true)]
     pub only_codegen: bool,
 
     /// Disable the new MIR Linker. Using this option may result in missing symbols from the
     /// `std` library. See <https://github.com/model-checking/kani/issues/1213> for more details.
-    #[structopt(long, hidden = true)]
+    #[structopt(long, hide = true)]
     pub legacy_linker: bool,
 
     /// Enable the new MIR Linker. This is already the default option and it will be removed once
@@ -150,7 +149,7 @@ pub struct KaniArgs {
     /// The MIR Linker affects how Kani prunes the code to be analyzed. It also fixes previous
     /// issues with missing `std` function definitions.
     /// See <https://model-checking.github.io/kani/rfc/rfcs/0001-mir-linker.html> for more details.
-    #[structopt(long, conflicts_with("legacy_linker"), hidden = true)]
+    #[structopt(long, conflicts_with("legacy-linker"), hide = true)]
     pub mir_linker: bool,
 
     /// Compiles Kani harnesses in all features of all packages selected on the command-line.
@@ -176,35 +175,35 @@ pub struct KaniArgs {
     pub cbmc_args: Vec<OsString>,
 
     /// Number of parallel jobs, defaults to 1
-    #[structopt(short, long, hidden = true, requires("enable-unstable"))]
+    #[structopt(short, long, hide = true, requires("enable-unstable"))]
     pub jobs: Option<Option<usize>>,
 
     // Hide option till https://github.com/model-checking/kani/issues/697 is
     // fixed.
     /// Use abstractions for the standard library.
     /// This is an experimental feature and requires `--enable-unstable` to be used
-    #[structopt(long, hidden = true, requires("enable-unstable"))]
+    #[structopt(long, hide = true, requires("enable-unstable"))]
     pub use_abs: bool,
     // Hide option till https://github.com/model-checking/kani/issues/697 is
     // fixed.
     /// Choose abstraction for modules of standard library if available
-    #[structopt(long, default_value = "std", possible_values = AbstractionType::variants(),
-    case_insensitive = true, hidden = true)]
+    #[structopt(long, default_value = "std", ignore_case = true, hide = true)]
+    #[clap(value_enum)]
     pub abs_type: AbstractionType,
 
     /// Enable extra pointer checks such as invalid pointers in relation operations and pointer
     /// arithmetic overflow.
     /// This feature is unstable and it may yield false counter examples. It requires
     /// `--enable-unstable` to be used
-    #[structopt(long, hidden_short_help(true), requires("enable-unstable"))]
+    #[structopt(long, hide_short_help = true, requires("enable-unstable"))]
     pub extra_pointer_checks: bool,
 
     /// Restrict the targets of virtual table function pointer calls.
     /// This feature is unstable and it requires `--enable-unstable` to be used
-    #[structopt(long, hidden_short_help(true), requires("enable-unstable"))]
+    #[structopt(long, hide_short_help = true, requires("enable-unstable"))]
     pub restrict_vtable: bool,
     /// Disable restricting the targets of virtual table function pointer calls
-    #[structopt(long, hidden_short_help(true))]
+    #[structopt(long, hide_short_help = true)]
     pub no_restrict_vtable: bool,
     /// Turn off assertion reachability checks
     #[structopt(long)]
@@ -212,15 +211,15 @@ pub struct KaniArgs {
 
     /// Do not error out for crates containing `global_asm!`.
     /// This option may impact the soundness of the analysis and may cause false proofs and/or counterexamples
-    #[structopt(long, hidden_short_help(true), requires("enable-unstable"))]
+    #[structopt(long, hide_short_help = true, requires("enable-unstable"))]
     pub ignore_global_asm: bool,
 
     /// Execute CBMC's sanity checks to ensure the goto-program we generate is correct.
-    #[structopt(long, hidden_short_help(true), requires("enable-unstable"))]
+    #[structopt(long, hide_short_help = true, requires("enable-unstable"))]
     pub run_sanity_checks: bool,
 
     /// Disable CBMC's slice formula which prevents values from being assigned to redundant variables in traces.
-    #[structopt(long, hidden_short_help(true), requires("enable-unstable"))]
+    #[structopt(long, hide_short_help = true, requires("enable-unstable"))]
     pub no_slice_formula: bool,
 
     /// Randomize the layout of structures. This option can help catching code that relies on
@@ -235,7 +234,7 @@ pub struct KaniArgs {
     /// <https://github.com/model-checking/kani/issues/1842>
     #[structopt(
         long,
-        hidden_short_help(true),
+        hide_short_help = true,
         requires("enable-unstable"),
         requires("harness"),
         conflicts_with("concrete-playback")
@@ -294,7 +293,7 @@ pub enum OutputFormat {
     Old,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
 pub enum AbstractionType {
     Std,
     Kani,
@@ -325,13 +324,14 @@ impl std::fmt::Display for AbstractionType {
         }
     }
 }
+#[cfg(test)]
 impl AbstractionType {
     pub fn variants() -> Vec<&'static str> {
         vec!["std", "kani", "c-ffi", "no-back"]
     }
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct CheckArgs {
     // Rust argument parsers (/clap) don't have the convenient '--flag' and '--no-flag' boolean pairs, so approximate
     // We're put both here then create helper functions to "intepret"
@@ -425,45 +425,45 @@ impl KaniArgs {
         // TODO: these conflicting flags reflect what's necessary to pass current tests unmodified.
         // We should consider improving the error messages slightly in a later pull request.
         if natives_unwind && extra_unwind {
-            return Err(Error::with_description(
-                "Conflicting flags: unwind flags provided to kani and in --cbmc-args.".to_string(),
+            return Err(Error::raw(
                 ErrorKind::ArgumentConflict,
+                "Conflicting flags: unwind flags provided to kani and in --cbmc-args.".to_string(),
             ));
         }
         if self.cbmc_args.contains(&OsString::from("--function")) {
-            return Err(Error::with_description(
-                "Invalid flag: --function should be provided to Kani directly, not via --cbmc-args.".to_string(),
+            return Err(Error::raw(
                 ErrorKind::ArgumentConflict,
+                "Invalid flag: --function should be provided to Kani directly, not via --cbmc-args.".to_string(),
             ));
         }
         if self.quiet && self.concrete_playback == Some(ConcretePlaybackMode::Print) {
-            return Err(Error::with_description(
-                "Conflicting options: --concrete-playback=print and --quiet.".to_string(),
+            return Err(Error::raw(
                 ErrorKind::ArgumentConflict,
+                "Conflicting options: --concrete-playback=print and --quiet.".to_string(),
             ));
         }
         if self.concrete_playback.is_some() && self.output_format == OutputFormat::Old {
-            return Err(Error::with_description(
+            return Err(Error::raw(
+                ErrorKind::ArgumentConflict,
                 "Conflicting options: --concrete-playback isn't compatible with \
                 --output-format=old."
                     .to_string(),
-                ErrorKind::ArgumentConflict,
             ));
         }
         if self.concrete_playback.is_some() && self.jobs() != Some(1) {
             // Concrete playback currently embeds a lot of assumptions about the order in which harnesses get called.
-            return Err(Error::with_description(
+            return Err(Error::raw(
+                ErrorKind::ArgumentConflict,
                 "Conflicting options: --concrete-playback isn't compatible with --jobs."
                     .to_string(),
-                ErrorKind::ArgumentConflict,
             ));
         }
         if self.jobs.is_some() && self.output_format != OutputFormat::Terse {
             // More verbose output formats make it hard to interpret output right now when run in parallel.
             // This can be removed when we change up how results are printed.
-            return Err(Error::with_description(
-                "Conflicting options: --jobs requires `--output-format=terse`".to_string(),
+            return Err(Error::raw(
                 ErrorKind::ArgumentConflict,
+                "Conflicting options: --jobs requires `--output-format=terse`".to_string(),
             ));
         }
 
@@ -473,8 +473,6 @@ impl KaniArgs {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
     use clap::ArgMatches;
 
@@ -499,7 +497,10 @@ mod tests {
     fn check_abs_type() {
         // Since we manually implemented this, consistency check it
         for t in AbstractionType::variants() {
-            assert_eq!(t, format!("{}", AbstractionType::from_str(t).unwrap()));
+            assert_eq!(
+                t,
+                format!("{}", <AbstractionType as ValueEnum>::from_str(t, false).unwrap())
+            );
         }
     }
 
