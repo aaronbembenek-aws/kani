@@ -4,7 +4,6 @@
 #[cfg(feature = "unsound_experiments")]
 use crate::unsound_experiments::UnsoundExperimentArgs;
 
-use anyhow::bail;
 use clap::{Error, ErrorKind, Parser, ValueEnum};
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -283,6 +282,7 @@ impl KaniArgs {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
 pub enum ConcretePlaybackMode {
     Print,
+    // Otherwise clap will default to `in-place`
     #[clap(name = "inplace")]
     InPlace,
 }
@@ -298,25 +298,11 @@ pub enum OutputFormat {
 pub enum AbstractionType {
     Std,
     Kani,
+    // Clap defaults to `c-ffi`
     CFfi,
+    // Clap defaults to `no-back`
     NoBack,
 }
-/*
-// We need customization to support dashes like 'no-back'
-impl std::str::FromStr for AbstractionType {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_string().to_lowercase().as_ref() {
-            "std" => Ok(Self::Std),
-            "kani" => Ok(Self::Kani),
-            "c-ffi" => Ok(Self::CFfi),
-            "no-back" => Ok(Self::NoBack),
-            _ => bail!("Unknown abs_type {}", s),
-        }
-    }
-}
-*/
 impl std::fmt::Display for AbstractionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -500,11 +486,12 @@ mod tests {
     fn check_abs_type() {
         // Since we manually implemented this, consistency check it
         for t in AbstractionType::variants() {
-            assert_eq!(
-                t,
-                format!("{}", <AbstractionType as ValueEnum>::from_str(t, false).unwrap())
-            );
+            assert_eq!(t, format!("{}", AbstractionType::from_str(t, false).unwrap()));
         }
+        check_stable_flag("--abs-type std");
+        check_stable_flag("--abs-type kani");
+        check_stable_flag("--abs-type c-ffi");
+        check_stable_flag("--abs-type no-back");
     }
 
     #[test]
@@ -531,6 +518,13 @@ mod tests {
         app.get_matches_from_safe(args.split(' '))
     }
 
+    fn check_stable_flag(args: &str) {
+        let result = parse_unstable_disabled(&args);
+        assert!(result.is_ok());
+        let flag = args.split(' ').next().unwrap();
+        assert!(result.unwrap().get_one::<String>(&flag[2..]).is_some());
+    }
+
     fn parse_unstable_enabled(args: &str) -> Result<ArgMatches, Error> {
         let args = format!("kani --enable-unstable file.rs {args}");
         let app = StandaloneArgs::clap();
@@ -548,7 +542,7 @@ mod tests {
         let result = parse_unstable_enabled(&args);
         assert!(result.is_ok());
         let flag = args.split(' ').next().unwrap();
-        assert!(result.unwrap().is_present(&flag[2..]));
+        assert!(result.unwrap().get_one::<String>(&flag[2..]).is_some());
     }
 
     #[test]
