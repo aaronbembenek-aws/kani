@@ -230,7 +230,7 @@ fn toolchain_sysroot_path() -> PathBuf {
 /// We do provide a `--sysroot` option that users may want to use instead.
 #[allow(deprecated)]
 fn sysroot_path(args: &ArgMatches) -> PathBuf {
-    let sysroot_arg = args.value_of(parser::SYSROOT);
+    let sysroot_arg = args.get_one::<String>(parser::SYSROOT);
     let path = if let Some(s) = sysroot_arg {
         PathBuf::from(s)
     } else if args.reachability_type() == ReachabilityType::Legacy || !args.get_flag(parser::GOTO_C)
@@ -254,7 +254,7 @@ mod args_test {
     #[cfg(unix)]
     #[test]
     fn test_invalid_arg_fails() {
-        use clap::ErrorKind;
+        use clap::error::ErrorKind;
         use std::ffi::OsString;
         use std::os::unix::ffi::OsStrExt;
 
@@ -263,12 +263,12 @@ mod args_test {
         let os_str = OsStr::from_bytes(&source[..]);
         assert_eq!(os_str.to_str(), None);
 
-        let matches = parser::parser().get_matches_from_safe(vec![
+        let matches = parser::parser().try_get_matches_from(vec![
             OsString::from("kani-compiler").as_os_str(),
             OsString::from("--sysroot").as_os_str(),
             OsString::from("any").as_os_str(),
             os_str,
         ]);
-        assert_eq!(matches.unwrap_err().kind, ErrorKind::InvalidUtf8);
+        assert_eq!(matches.unwrap_err().kind(), ErrorKind::InvalidUtf8);
     }
 }
