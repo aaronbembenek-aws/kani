@@ -4,7 +4,7 @@
 #[cfg(feature = "unsound_experiments")]
 use crate::unsound_experiments::UnsoundExperimentArgs;
 
-use clap::{Error, ErrorKind, Parser, ValueEnum};
+use clap::{ArgAction, Error, ErrorKind, Parser, ValueEnum};
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -199,7 +199,7 @@ pub struct KaniArgs {
 
     /// Restrict the targets of virtual table function pointer calls.
     /// This feature is unstable and it requires `--enable-unstable` to be used
-    #[structopt(long, hide_short_help = true, requires("enable-unstable"))]
+    #[structopt(long, hide_short_help = true, requires("enable-unstable"), action = ArgAction::SetTrue)]
     pub restrict_vtable: bool,
     /// Disable restricting the targets of virtual table function pointer calls
     #[structopt(long, hide_short_help = true)]
@@ -488,10 +488,10 @@ mod tests {
         for t in AbstractionType::variants() {
             assert_eq!(t, format!("{}", AbstractionType::from_str(t, false).unwrap()));
         }
-        check_stable_flag("--abs-type std");
-        check_stable_flag("--abs-type kani");
-        check_stable_flag("--abs-type c-ffi");
-        check_stable_flag("--abs-type no-back");
+        check_stable_argument("--abs-type std", false);
+        check_stable_argument("--abs-type kani", false);
+        check_stable_argument("--abs-type c-ffi", false);
+        check_stable_argument("--abs-type no-back", false);
     }
 
     #[test]
@@ -518,11 +518,15 @@ mod tests {
         app.get_matches_from_safe(args.split(' '))
     }
 
-    fn check_stable_flag(args: &str) {
+    fn check_stable_argument(args: &str, is_flag: bool) {
         let result = parse_unstable_disabled(&args);
         assert!(result.is_ok());
-        let flag = args.split(' ').next().unwrap();
-        assert!(result.unwrap().get_one::<String>(&flag[2..]).is_some());
+        let arg = args.split(' ').next().unwrap();
+        if is_flag {
+            assert!(result.unwrap().get_flag(&arg[2..]));
+        } else {
+            assert!(result.unwrap().get_one::<String>(&arg[2..]).is_some());
+        }
     }
 
     fn parse_unstable_enabled(args: &str) -> Result<ArgMatches, Error> {
@@ -532,6 +536,10 @@ mod tests {
     }
 
     fn check_unstable_flag(args: &str) {
+        check_unstable_argument(args, true)
+    }
+
+    fn check_unstable_argument(args: &str, is_flag: bool) {
         // Should fail without --enable-unstable.
         assert_eq!(
             parse_unstable_disabled(&args).unwrap_err().kind,
@@ -541,8 +549,12 @@ mod tests {
         // Should succeed with --enable-unstable.
         let result = parse_unstable_enabled(&args);
         assert!(result.is_ok());
-        let flag = args.split(' ').next().unwrap();
-        assert!(result.unwrap().get_one::<String>(&flag[2..]).is_some());
+        let arg = args.split(' ').next().unwrap();
+        if is_flag {
+            assert!(result.unwrap().get_flag(&arg[2..]));
+        } else {
+            assert!(result.unwrap().get_one::<String>(&arg[2..]).is_some());
+        }
     }
 
     #[test]
@@ -567,8 +579,8 @@ mod tests {
 
     #[test]
     fn check_concrete_playback_unstable() {
-        check_unstable_flag("--concrete-playback inplace");
-        check_unstable_flag("--concrete-playback print");
+        check_unstable_argument("--concrete-playback inplace", false);
+        check_unstable_argument("--concrete-playback print", false);
     }
 
     /// Check if parsing the given argument string results in the given error.
