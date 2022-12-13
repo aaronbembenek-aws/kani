@@ -11,7 +11,7 @@ To run the harness, use the command:
 cargo kani --enable-unstable --enable-stubbing --harness demo_harness
 ```
 
-On my laptop, this completes in about 10 seconds (including compilation time), using Kani v0.16.0 and CBMC v5.71.0.
+On my laptop, this completes in about 10 seconds (including compilation time), using Kani v0.16.0 and CBMC v5.72.1.
 
 ## Caveats
 
