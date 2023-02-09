@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["block_on","A very simple executor: it polls the future in a busy loop until completion"]]};
